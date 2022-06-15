@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 const properties = require('./json/properties.json');
 const users = require('./json/users.json');
 
@@ -23,9 +24,12 @@ pool.query(`SELECT title FROM properties LIMIT 10;`).then(response => { console.
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithEmail = function(email) {
+
+  const emailQuery = (`SELECT * FROM users WHERE email = $1 `);
+  //null if user doesnt exist?
   return pool
     .query(
-      `SELECT * FROM users WHERE email = $1 `,
+      emailQuery,
       [email])
     .then((result) => {
       console.log(result.rows);
@@ -34,16 +38,6 @@ const getUserWithEmail = function(email) {
     .catch((err) => {
       console.log(err.message);
     });
-  // let user;
-  // for (const userId in users) {
-  //   user = users[userId];
-  //   if (user.email.toLowerCase() === email.toLowerCase()) {
-  //     break;
-  //   } else {
-  //     user = null;
-  //   }
-  // }
-  // return Promise.resolve(user);
 };
 
 exports.getUserWithEmail = getUserWithEmail;
@@ -54,10 +48,12 @@ exports.getUserWithEmail = getUserWithEmail;
  * @return {Promise<{}>} A promise to the user.
  */
 const getUserWithId = function(id) {
-  //   return Promise.resolve(users[id]);
+
+  const idQuery = (`SELECT * FROM users WHERE id = $1 `);
+
   return pool
     .query(
-      `SELECT * FROM users WHERE id = $1 `,
+      idQuery,
       [id])
     .then((result) => {
       console.log(result.rows);
@@ -76,20 +72,16 @@ exports.getUserWithId = getUserWithId;
  * @return {Promise<{}>} A promise to the user.
  */
 const addUser = function(user) {
-  //   const userId = Object.keys(users).length + 1;
-  //   user.id = userId;
-  //   users[userId] = user;
-  //   return Promise.resolve(user);
-  // }
 
   const { name, email, password } = user;
+  const userQuery = (`INSERT INTO users
+  (name, email, password)
+  VALUES ($1, $2, $3)
+  RETURNING *;`);
 
   return pool
     .query(
-      `INSERT INTO users
-  (name, email, password)
-  VALUES ($1, $2, $3)
-  RETURNING *;`,
+      userQuery,
       [name, email, password]
     )
     .then((result) => {
@@ -109,7 +101,30 @@ exports.addUser = addUser;
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function(guest_id, limit = 10) {
-  return getAllProperties(null, 2);
+  // return getAllProperties(null, 2);
+  const id = getUserWithId(guest_id);
+  const resQuery = (`SELECT reservations.id, properties.title, properties.cost_per_night, reservations.start_date, avg(rating) as average_rating
+  FROM reservations
+  JOIN properties ON reservations.property_id = properties.id
+  JOIN property_reviews ON properties.id = property_reviews.property_id
+  WHERE reservations.guest_id = 1
+  GROUP BY properties.id, reservations.id
+  ORDER BY reservations.start_date
+  LIMIT 10;`);
+
+  return pool
+    //query
+    .query(
+      resQuery,
+      [id])
+    .then((result) => {
+      return result.rows;
+    }
+    )
+    .catch((err) => {
+      console.log(err.message);
+    }
+    );
 };
 exports.getAllReservations = getAllReservations;
 
@@ -123,9 +138,11 @@ exports.getAllReservations = getAllReservations;
  */
 const getAllProperties = (options, limit = 10) => {
 
+  const propQuery = (`SELECT * FROM properties LIMIT $1`);
+
   return pool
     .query(
-      `SELECT * FROM properties LIMIT $1`,
+      propQuery,
       [limit])
     .then((result) => {
       console.log(result.rows);
@@ -143,7 +160,7 @@ exports.getAllProperties = getAllProperties;
  * @param {{}} property An object containing all of the property details.
  * @return {Promise<{}>} A promise to the property.
  */
-const addProperty = function (property) {
+const addProperty = function(property) {
   const propertyId = Object.keys(properties).length + 1;
   property.id = propertyId;
   properties[propertyId] = property;

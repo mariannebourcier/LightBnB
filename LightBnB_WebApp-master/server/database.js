@@ -14,7 +14,9 @@ const connectDb = {
 
 const pool = new Pool(connectDb);
 
-pool.query(`SELECT title FROM properties LIMIT 10;`).then(response => { console.log(response) });
+pool.query(`SELECT title FROM properties LIMIT 10;`).then(response => {
+  console.log(response);
+});
 
 /// Users
 
@@ -136,19 +138,67 @@ exports.getAllReservations = getAllReservations;
  */
 const getAllProperties = (options, limit = 10) => {
 
-  const propQuery = (`SELECT * FROM properties LIMIT $1`);
+  const queryParams = [];
+  let and = ' AND ';
+  let having = ' HAVING ';
+  // 2
+  let queryString = `
+  SELECT properties.*, avg(property_reviews.rating) as average_rating
+  FROM properties
+  JOIN property_reviews ON properties.id = property_id
+  `;
 
+  // 3
+  if (options.city) {
+    queryParams.push(`%${options.city}%`);
+    queryString += `WHERE city LIKE $${queryParams.length} `;
+  }
+
+  //owner id
+  if (options.owner_id) {
+    queryParams.push(parseInt(options.owner_id));
+    queryString += `properties.owner_id = $${queryParams.length}`;
+  }
+
+  //min price/night max
+  if (options.minimum_price_per_night && options.maximum_price_per_night) {
+    queryParams.push(
+      //dollar amt
+      options.minimum_price_per_night * 100,
+      options.maximum_price_per_night * 100
+    );
+    const minMaxCost = `properties.cost_per_night >= $${queryParams.length - 1}
+    AND properties.cost_per_night <= $${queryParams.length}`;
+    if (having.length > 7) having += and + `${minMaxCost}`;
+    else having += `${minMaxCost}`;
+  }
+
+  //min rating
+  if (options.minimum_rating) {
+    queryParams.push(parseInt(options.minimum_rating));
+    const rating = `AVG(property_reviews.rating) >= $${queryParams.length}`;
+    if (having.length > 7) having += and + `${rating}`;
+    else having += `${rating}`;
+  }
+
+  if (having.length > 7) {
+    queryString += having;
+  }
+  // 4
+  queryParams.push(limit);
+  queryString += `
+  ORDER BY properties.cost_per_night
+  LIMIT $${queryParams.length};
+  `;
+
+  // // 5
+  // console.log(queryString, queryParams);
+
+  // 6
   return pool
-    .query(
-      propQuery,
-      [limit])
-    .then((result) => {
-      console.log(result.rows);
-      return result.rows;
-    })
-    .catch((err) => {
-      console.log(err.message);
-    });
+    .query(queryString, queryParams)
+    .then((res) => res.rows)
+    .catch((err) => err.message);
 };
 exports.getAllProperties = getAllProperties;
 

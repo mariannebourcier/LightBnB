@@ -1,6 +1,6 @@
 /* eslint-disable camelcase */
-// const properties = require('./json/properties.json');
-// const users = require('./json/users.json');
+const properties = require('./json/properties.json');
+const users = require('./json/users.json');
 
 // Connection to database
 const { Pool } = require('pg');
@@ -15,11 +15,11 @@ const connectDb = {
 const pool = new Pool(connectDb);
 
 pool.query(`SELECT * FROM properties LIMIT 1;`).then((res) => {
-  console.log("Connection success!", res);
+  console.log("Connection success!");
 });
 
 /// Users
-
+   
 /**
  * Get a single user from the database given their email.
  * @param {String} email The email of the user.
@@ -86,7 +86,7 @@ exports.addUser = addUser;
  * @return {Promise<[{}]>} A promise to the reservations.
  */
 const getAllReservations = function(guest_id, limit = 10) {
-  // return getAllProperties(null, 2);
+
   const resQuery = (`SELECT reservations.*, properties.*, AVG(property_reviews.rating) AS average_rating
   FROM reservations
   JOIN properties ON properties.id = reservations.property_id
@@ -98,7 +98,6 @@ const getAllReservations = function(guest_id, limit = 10) {
   const queryParams = [guest_id, limit];
 
   return pool
-    //query
     .query(resQuery, queryParams)
     .then((result) => result.rows)
     .catch((err) => err.message);
@@ -119,12 +118,12 @@ const getAllProperties = (options, limit = 10) => {
   let queryString = `
   SELECT properties.*, AVG(property_reviews.rating) AS average_rating
   FROM properties
-  JOIN property_reviews ON properties.id = property_reviews.property_id
+  JOIN property_reviews ON property_reviews.property_id = properties.id
   `;
 
   let queryParams = [];
   let and = ' AND ';
-  let having = ' HAVING ';
+  let having = "HAVING ";
 
 
   //City option
@@ -170,6 +169,7 @@ const getAllProperties = (options, limit = 10) => {
   ORDER BY properties.cost_per_night
   LIMIT $${queryParams.length};
   `;
+
 
   //Sending query
   return pool

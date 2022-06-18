@@ -28,7 +28,7 @@ pool.query(`SELECT * FROM properties LIMIT 1;`).then((res) => {
 const getUserWithEmail = function(email) {
 
   const emailQuery = (`SELECT * FROM users WHERE email = $1 `);
-  const queryParams = [email.toLowerCase()];
+  const queryParams = [email];
 
   return pool
     .query(emailQuery, queryParams)
@@ -68,7 +68,7 @@ const addUser = function(user) {
   (name, email, password)
   VALUES ($1, $2, $3)
   RETURNING *;`);
-  const queryParams = [name, email.toLowerCase(), password];
+  const queryParams = [name, email, password];
 
   return pool
     .query(userQuery, queryParams)
@@ -122,54 +122,49 @@ const getAllProperties = (options, limit = 10) => {
   `;
 
   let queryParams = [];
-  let and = ' AND ';
-  let having = "HAVING ";
 
 
   //City option
   if (options.city) {
     queryParams.push(`%${options.city}%`);
-    having += `city LIKE $${queryParams.length}`;
+    queryString += `WHERE city LIKE $${queryParams.length}`;
   }
 
   //Owner ID option
   if (options.owner_id) {
-    queryParams.push(parseInt(options.owner_id));
-    queryString += `properties.owner_id = $${queryParams.length}`;
+    const op = queryParams.length > 0 ? 'AND' : 'WHERE';
+    queryParams.push(options.owner_id);
+    queryString += `${op} owner_id = $${queryParams.length}`;
   }
 
   //Min/Max price option
   if (options.minimum_price_per_night && options.maximum_price_per_night) {
+    const op = queryParams.length > 0 ? 'AND' : 'WHERE';
     queryParams.push(
       //Convert from cent to dollar amount
       options.minimum_price_per_night * 100,
       options.maximum_price_per_night * 100
     );
-    const minMaxCost = `properties.cost_per_night >= $${queryParams.length - 1}
-    AND properties.cost_per_night <= $${queryParams.length}`;
-    if (having.length > 7) having += and + `${minMaxCost}`;
-    else having += `${minMaxCost}`;
+    queryString += `${op} cost_per_night >= $${queryParams.length - 1} AND cost_per_night <= $${queryParams.length} `;
   }
 
   //Min rating option
   if (options.minimum_rating) {
-    queryParams.push(parseInt(options.minimum_rating));
-    const rating = `AVG(property_reviews.rating) >= $${queryParams.length}`;
-    if (having.length > 7) having += and + `${rating}`;
-    else having += `${rating}`;
+    const op = queryParams.length > 0 ? 'AND' : 'WHERE';
+    queryParams.push(options.minimum_rating);
+    queryString += `${op} rating >= $${queryParams.length}`;
   }
 
-  if (having.length > 7) {
-    queryString += having;
-  }
 
   //Before sending query
   queryParams.push(limit);
   queryString += `
-  ORDER BY properties.cost_per_night
+  GROUP BY properties.id
+  ORDER BY cost_per_night
   LIMIT $${queryParams.length};
   `;
 
+  console.log(queryString, queryParams);
 
   //Sending query
   return pool

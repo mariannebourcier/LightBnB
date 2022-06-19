@@ -3,7 +3,7 @@
 LightBnB is a web application that uses SQL as its database. It allows users to search for a property for the night by filtering the database.
 
 ## ERD 
-!["screenshot of ERD"]()
+!["screenshot of ERD"](https://github.com/mariannebourcier/LightBnB/blob/main/screenshot/erd.png?raw=true)
 This screenshot shows how the database was designed to create LightBnB. 
 
 ##Dependencies
